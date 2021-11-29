@@ -1,0 +1,84 @@
+---
+title: 'Part 2: Chi-square with lizards'' tails'
+author: "Sophia Leiker"
+date: "11/29/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(janitor)
+library(broom)
+```
+
+## Read in data
+```{r}
+lizards <- read_csv(here("data", "lizards.csv"))
+```
+
+Get counts of lizards by species:
+```{r}
+lizards %>% 
+  count(spp) %>% 
+  arrange(-n)
+```
+
+## Make a subset 
+
+- UTST lizards
+- Sties: IBPE (enclosure grassland), RABB (rabbit mesquite site), "EAST" (east tarbrush site)
+- Tail condition is recorded (W = whole, B = broken)
+
+```{r}
+utst <- lizards %>% 
+  filter(spp == "UTST") %>% 
+  filter(site %in% c ("IBPE", "RABB", "EAST")) %>%
+  filter(tail %in% c("B", "W"))
+```
+
+## Find counts and proportions of lizards with broken or whole tails at each site
+
+```{r}
+utst %>% 
+  count(site, tail)
+```
+
+```{r}
+tail_counts <- utst %>% 
+  janitor::tabyl(site, tail)
+#this is creating a nice table with counts for each of the variables entered in
+
+
+#this is calculating percentages by rows
+tail_proportions <- tail_counts %>% 
+  adorn_percentages() %>% 
+  janitor::adorn_pct_formatting(digits = 2) %>% #rounds to sig figs
+  janitor::adorn_ns() #add the absolute count next to the percentages
+```
+
+## Convert to a contingency table
+
+Use 'column_to_rowname()' function. 
+
+```{r}
+lizard_ct <- tail_counts %>% 
+  column_to_rownames(var = "site")
+```
+
+## Chi-square
+Are tale breakage and site independent. If they are truly independent, we would expect similar lizards with broken tales across sites. Note: We are seeing that if the difference is so significant that we would reject the null hypothesis that they are independent of each other 
+```{r}
+lizard_x2 <- chisq.test(lizard_ct)
+lizard_x2
+
+lizard_tidy <- broom::tidy(lizard_x2)
+```
+
+There is a significant association (i.e non-independence) between site and lizard tail breakage ($\chi$^2^(`r lizard_tidy$parameter`) = `r lizard_tidy$statistic`, *p* = `r lizard_tidy$p.value`)
+
+
+
+13.06 for 2 degrees of freedom, means a p-value of 0.0014. (prob getting counts this difference so low;..)Using significance level of 0.5, yes sufficient evidence to reject the null hypothesis of independence, means retian alternative hypothesis that site and tail breakage are not independent. Significant effect of cite on tail breakage. Site and lizard tail breakake are not independent. 
+
